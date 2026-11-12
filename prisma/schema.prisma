@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+enum ListingIntent {
+  OFFER
+  REQUEST
+  SERVICE_OFFER
+  SERVICE_REQUEST
+  JOB_OPENING
+  JOB_APPLICATION
+  PARTNERSHIP_OFFER
+  PARTNERSHIP_REQUEST
+}
+enum RecordStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PAUSED
+  EXPIRED
+  CLOSED
+}
+enum MatchStatus {
+  SUGGESTED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  INVITED
+  CONNECTED
+}
+enum ConnectionStatus {
+  PENDING
+  PARTIALLY_ACCEPTED
+  ACTIVE
+  DECLINED
+  EXPIRED
+  WITHDRAWN
+  CLOSED
+}
+enum DealStatus {
+  OPEN
+  DISCUSSION
+  NEGOTIATION
+  AGREEMENT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+enum CommissionStatus {
+  DRAFT
+  AGREED
+  EARNED
+  INVOICED
+  PARTIALLY_PAID
+  PAID
+  WAIVED
+  DISPUTED
+  REFUNDED
+}
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
+model User {
+  id             String       @id @default(uuid()) @db.Uuid
+  email          String       @unique
+  passwordHash   String
+  firstName      String
+  lastName       String?
+  phone          String?
+  countryCode    String?
+  timezone       String       @default("UTC")
+  preferredLanguage String    @default("en")
+  status         UserStatus   @default(ACTIVE)
+  role           String       @default("USER")
+  emailVerifiedAt DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  listings       Listing[]    @relation("ListingOwner")
+  requirements   Requirement[] @relation("RequirementOwner")
+  buyerMatches   Match[]      @relation("BuyerMatches")
+  sellerMatches  Match[]      @relation("SellerMatches")
+  participations ConnectionParticipant[]
+  organizationMemberships OrganizationMember[]
+  subscriptions Subscription[]
+  sentDeals      Deal[]       @relation("DealCreator")
+  commissionAgreements CommissionAgreement[]
+  auditLogs      AuditLog[]
+}
+
+model Organization {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  legalName      String?
+  countryCode    String
+  website        String?
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  members        OrganizationMember[]
+  listings       Listing[]
+  requirements   Requirement[]
+}
+
+model OrganizationMember {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  userId         String @db.Uuid
+  role           String @default("MEMBER")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, userId])
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  parentId    String?  @db.Uuid
+  name        String
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  parent      Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  attributes  CategoryAttribute[]
+  listings    Listing[]
+  requirements Requirement[]
+  createdAt   DateTime @default(now())
+}
+
+model CategoryAttribute {
+  id          String   @id @default(uuid()) @db.Uuid
+  categoryId  String   @db.Uuid
+  key         String
+  label       String
+  dataType    String
+  isRequired  Boolean  @default(false)
+  isMatchable Boolean  @default(false)
+  config      Json?
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  listingValues ListingAttribute[]
+  requirementValues RequirementAttribute[]
+  @@unique([categoryId, key])
+}
+
+model Listing {
+  id             String        @id @default(uuid()) @db.Uuid
+  ownerId        String        @db.Uuid
+  organizationId String?       @db.Uuid
+  categoryId     String        @db.Uuid
+  intent         ListingIntent
+  title          String
+  description    String
+  countryCode    String
+  region         String?
+  city           String?
+  price          Decimal?      @db.Decimal(20, 4)
+  currency       String?
+  isNegotiable   Boolean       @default(false)
+  attributes     Json?
+  status         RecordStatus  @default(PENDING_REVIEW)
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  owner          User          @relation("ListingOwner", fields: [ownerId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  category       Category      @relation(fields: [categoryId], references: [id])
+  attributeValues ListingAttribute[]
+  matches        Match[]
+  @@index([categoryId, intent, status])
+  @@index([countryCode, city, status])
+  @@index([ownerId, status])
+}
+
+model ListingAttribute {
+  id          String @id @default(uuid()) @db.Uuid
+  listingId   String @db.Uuid
+  attributeId String @db.Uuid
+  value       Json
+  listing     Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  attribute   CategoryAttribute @relation(fields: [attributeId], references: [id])
+  @@unique([listingId, attributeId])
+}
+
+model Requirement {
+  id             String        @id @default(uuid()) @db.Uuid
+  ownerId        String        @db.Uuid
+  organizationId String?       @db.Uuid
+  categoryId     String        @db.Uuid
+  intent         ListingIntent
+  title          String
+  description    String?
+  countryCode    String
+  region         String?
+  city           String?
+  minPrice       Decimal?      @db.Decimal(20, 4)
+  maxPrice       Decimal?      @db.Decimal(20, 4)
+  currency       String?
+  attributes     Json?
+  status         RecordStatus  @default(PENDING_REVIEW)
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  owner          User          @relation("RequirementOwner", fields: [ownerId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  category       Category      @relation(fields: [categoryId], references: [id])
+  attributeValues RequirementAttribute[]
+  matches        Match[]
+  @@index([categoryId, intent, status])
+  @@index([countryCode, city, status])
+}
+
+model RequirementAttribute {
+  id            String @id @default(uuid()) @db.Uuid
+  requirementId String @db.Uuid
+  attributeId   String @db.Uuid
+  value         Json
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  attribute     CategoryAttribute @relation(fields: [attributeId], references: [id])
+  @@unique([requirementId, attributeId])
+}
+
+model Match {
+  id            String      @id @default(uuid()) @db.Uuid
+  requirementId String      @db.Uuid
+  listingId     String      @db.Uuid
+  buyerId       String      @db.Uuid
+  sellerId      String      @db.Uuid
+  score         Decimal     @db.Decimal(5, 2)
+  status        MatchStatus @default(SUGGESTED)
+  explanation   Json?
+  ruleVersion   String      @default("v1")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  listing       Listing     @relation(fields: [listingId], references: [id])
+  buyer         User        @relation("BuyerMatches", fields: [buyerId], references: [id])
+  seller        User        @relation("SellerMatches", fields: [sellerId], references: [id])
+  connection    Connection?
+  @@unique([requirementId, listingId])
+  @@index([status, score])
+}
+
+model Connection {
+  id          String           @id @default(uuid()) @db.Uuid
+  matchId     String           @unique @db.Uuid
+  status      ConnectionStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  match       Match            @relation(fields: [matchId], references: [id])
+  participants ConnectionParticipant[]
+  deals       Deal[]
+}
+
+model ConnectionParticipant {
+  id           String   @id @default(uuid()) @db.Uuid
+  connectionId String   @db.Uuid
+  userId       String   @db.Uuid
+  acceptedAt   DateTime?
+  declinedAt   DateTime?
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([connectionId, userId])
+}
+
+model Deal {
+  id            String     @id @default(uuid()) @db.Uuid
+  connectionId  String     @db.Uuid
+  createdById   String     @db.Uuid
+  title         String
+  dealValue     Decimal?   @db.Decimal(20, 4)
+  currency      String?
+  status        DealStatus @default(OPEN)
+  completedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  connection    Connection @relation(fields: [connectionId], references: [id])
+  createdBy     User       @relation("DealCreator", fields: [createdById], references: [id])
+  commissionAgreements CommissionAgreement[]
+}
+
+model CommissionAgreement {
+  id               String           @id @default(uuid()) @db.Uuid
+  dealId           String           @db.Uuid
+  payerId          String           @db.Uuid
+  calculationType  String
+  percentage       Decimal?         @db.Decimal(7, 4)
+  fixedAmount      Decimal?         @db.Decimal(20, 4)
+  currency         String
+  status           CommissionStatus @default(DRAFT)
+  termsVersion     String
+  agreedAt         DateTime?
+  createdAt        DateTime         @default(now())
+  deal             Deal             @relation(fields: [dealId], references: [id])
+  payer            User             @relation(fields: [payerId], references: [id])
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  code        String   @unique
+  price       Decimal  @db.Decimal(20, 4)
+  currency    String
+  interval    String
+  features    Json
+  isActive    Boolean  @default(true)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @db.Uuid
+  planId    String             @db.Uuid
+  status    SubscriptionStatus @default(TRIAL)
+  startsAt  DateTime           @default(now())
+  endsAt    DateTime?
+  user      User               @relation(fields: [userId], references: [id])
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id])
+  @@index([entityType, entityId, createdAt])
+}
