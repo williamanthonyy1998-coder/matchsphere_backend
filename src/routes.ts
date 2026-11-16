@@ -148,7 +148,7 @@ router.post("/admin/matches/:id/reject", authenticate, requireAdmin, wrap(async 
 router.post("/matches/:id/invite", authenticate, wrap(async (req, res) => {
   const match = await prisma.match.findUnique({ where: { id: req.params.id } });
   if (!match || (match.buyerId !== req.user!.id && match.sellerId !== req.user!.id)) return res.status(404).json({ success: false, message: "Match not found" });
-  if (![MatchStatus.APPROVED, MatchStatus.INVITED].includes(match.status)) return res.status(409).json({ success: false, message: "Match must be approved before invitations" });
+  if (match.status !== MatchStatus.APPROVED && match.status !== MatchStatus.INVITED) return res.status(409).json({ success: false, message: "Match must be approved before invitations" });
   const existing = await prisma.connection.findUnique({ where: { matchId: match.id } });
   if (existing) return res.status(409).json({ success: false, message: "Connection invitation already exists" });
   const connection = await prisma.connection.create({ data: { matchId: match.id, participants: { create: [{ userId: match.buyerId }, { userId: match.sellerId }] } }, include: { participants: true } });

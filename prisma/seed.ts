@@ -51,9 +51,9 @@ async function main() {
   });
 
   await prisma.subscription.upsert({
-    where: { id: "00000000-0000-4000-8000-000000000001" },
+    where: { id: "00000000-0000--8000-000000000001" },
     update: { userId: admin.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
-    create: { id: "00000000-0000-4000-8000-000000000001", userId: admin.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
+    create: { id: "00000000-0000--8000-000000000001", userId: admin.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
   });
 
   // Demo marketplace accounts. All are synthetic test users, not real people.
