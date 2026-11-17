@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "build": "prisma generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "start": "node dist/src/server.js",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",

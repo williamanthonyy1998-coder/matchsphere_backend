@@ -50,11 +50,17 @@ async function main() {
     create: { email: adminEmail, passwordHash, firstName: "MatchSphere", lastName: "Administrator", role: "ADMIN", status: UserStatus.ACTIVE, countryCode: "US" },
   });
 
-  await prisma.subscription.upsert({
-    where: { id: "00000000-0000--8000-000000000001" },
-    update: { userId: admin.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
-    create: { id: "00000000-0000--8000-000000000001", userId: admin.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
-  });
+  const adminSubscription = await prisma.subscription.findFirst({ where: { userId: admin.id } });
+  if (adminSubscription) {
+    await prisma.subscription.update({
+      where: { id: adminSubscription.id },
+      data: { planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
+    });
+  } else {
+    await prisma.subscription.create({
+      data: { userId: admin.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
+    });
+  }
 
   // Demo marketplace accounts. All are synthetic test users, not real people.
   const demoPassword = process.env.MATCHSPHERE_DEMO_PASSWORD || "DemoUser@2026";
