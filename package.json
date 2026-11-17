@@ -2,25 +2,30 @@
   "name": "matchsphere-api",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "prisma:generate": "node ./node_modules/prisma/build/index.js generate",
+    "build": "npm run prisma:generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
-    "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "postinstall": "npm run prisma:generate",
+    "vercel-build": "npm run prisma:generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "db:generate": "npm run prisma:generate",
+    "db:migrate": "node ./node_modules/prisma/build/index.js migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "node ./node_modules/prisma/build/index.js studio"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "6.19.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "prisma": "6.19.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -29,14 +34,7 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.5",
-    "prisma": "^6.19.3",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
-  },
-  "allowScripts": {
-    "@prisma/client@6.19.3": true,
-    "@prisma/engines@6.19.3": true,
-    "esbuild@0.28.2": true,
-    "prisma@6.19.3": true
   }
 }
